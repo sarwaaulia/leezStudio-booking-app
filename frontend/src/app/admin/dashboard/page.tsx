@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useMemo, useEffect } from "react";
 import api from "@/lib/axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
-import { Loader2, Users, LogOut } from "lucide-react";
+import { Loader2, Users, LogOut, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,7 +35,6 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useRouter } from "next/navigation";
 
 const formatTime = (timeStr: string) => {
 	if (!timeStr) return "--:--";
@@ -45,24 +47,36 @@ const formatTime = (timeStr: string) => {
 
 export default function AdminDashboard() {
 	const queryClient = useQueryClient();
-
 	const router = useRouter();
+	const [isMounted, setIsMounted] = useState(false);
+
+	useEffect(() => {
+		setIsMounted(true);
+		const token = localStorage.getItem("token");
+		if (!token) {
+			router.push("/login");
+		}
+	}, [router]);
 
 	const handleLogout = () => {
 		localStorage.removeItem("token");
 		queryClient.clear();
 		toast.success("Logged out successfully");
-		router.push("/login");
+		router.replace("/login");
 	};
-    const isAuthenticated = typeof window !== "undefined" && !!localStorage.getItem("token")
 
-	const { data: bookingsData, isLoading } = useQuery({
+	const {
+		data: bookingsData,
+		isLoading,
+		isError,
+	} = useQuery({
 		queryKey: ["bookings"],
 		queryFn: async () => {
 			const res = await api.get("/admin/bookings");
 			return res.data.data;
 		},
-		refetchInterval: 5000,
+		refetchInterval: 10000, 
+		enabled: isMounted,
 	});
 
 	const studioStats = useMemo(() => {
@@ -85,28 +99,33 @@ export default function AdminDashboard() {
 		return stats;
 	}, [bookingsData]);
 
-	// admin approve booking
 	const approveMutation = useMutation({
 		mutationFn: (id: number) => api.patch(`/admin/bookings/${id}/approve`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["bookings"] });
 			toast.success("Booking Approved!");
 		},
+		onError: () => toast.error("Failed to approve booking"),
 	});
 
-	// booking cancel
 	const rejectMutation = useMutation({
 		mutationFn: (id: number) => api.delete(`/admin/bookings/${id}`),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["bookings"] });
-			toast.info("Booking Cancelled");
+			toast.info("Booking Rejected");
 		},
+		onError: () => toast.error("Failed to process request"),
 	});
 
 	const chartOptions = useMemo(
 		() => ({
-			chart: { type: "column", backgroundColor: "transparent" },
+			chart: {
+				type: "column",
+				backgroundColor: "transparent",
+				style: { fontFamily: "inherit" },
+			},
 			title: { text: "" },
+			credits: { enabled: false },
 			xAxis: {
 				categories: Object.keys(studioStats),
 				labels: { style: { color: "#4E342E", fontWeight: "bold" } },
@@ -116,11 +135,13 @@ export default function AdminDashboard() {
 				min: 0,
 				allowDecimals: false,
 			},
-			series: [{ name: "Visitors", data: Object.values(studioStats) }],
+			series: [
+				{ name: "Confirmed Visitors", data: Object.values(studioStats) },
+			],
 			legend: { enabled: false },
 			plotOptions: {
 				column: {
-					borderRadius: 5,
+					borderRadius: 8,
 					colorByPoint: true,
 					dataLabels: { enabled: true },
 				},
@@ -130,130 +151,137 @@ export default function AdminDashboard() {
 		[studioStats],
 	);
 
-	if (isLoading)
+	if (!isMounted || isLoading) {
 		return (
-			<div className="flex h-screen w-full items-center justify-center bg-[#F5F5F5]">
-				<Loader2 className="h-10 w-10 animate-spin text-[#4E342E]" />
+			<div className="flex h-screen w-full flex-col items-center justify-center bg-[#F5F5F5] gap-4">
+				<Loader2 className="h-12 w-12 animate-spin text-[#4E342E]" />
+				<p className="text-[#4E342E] font-medium animate-pulse">
+					Syncing dashboard data...
+				</p>
 			</div>
 		);
+	}
 
 	return (
 		<div className="min-h-screen bg-[#F5F5F5]">
-			{/* navbar */}
 			<nav className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
 				<div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
-					{/* logo */}
 					<div className="flex items-center gap-2">
-						<h1 className="text-2xl font-bold tracking-tighter text-[#795548] drop-shadow-md">
-							LeezStudio
+						<div className="bg-[#795548] p-1.5 rounded-lg">
+							<LayoutDashboard size={20} className="text-white" />
+						</div>
+						<h1 className="text-xl font-bold tracking-tight text-[#4E342E]">
+							LeezStudio{" "}
+							<span className="font-light text-gray-400">| Panel</span>
 						</h1>
 					</div>
 
-					{/* navigation */}
-					<div className="hidden md:flex items-center gap-6">
-						<Link
-							href="/admin/dashboard"
-							className="flex items-center gap-2 text-sm font-medium text-[#4E342E]"
-						>
-							Dashboard
-						</Link>
-
-						{isAuthenticated ? (
-							<AlertDialog>
-								<AlertDialogTrigger asChild>
-									<Button
-										variant="outline"
-										className="border-red-200 text-red-600 hover:bg-red-50 gap-2"
-									>
-										<LogOut size={16} /> Logout
-									</Button>
-								</AlertDialogTrigger>
-								<AlertDialogContent>
-									<AlertDialogHeader>
-										<AlertDialogTitle>Logout confirmation</AlertDialogTitle>
-										<AlertDialogDescription>
-											You want to logged out?
-										</AlertDialogDescription>
-									</AlertDialogHeader>
-									<AlertDialogFooter>
-										<AlertDialogCancel>Cancel</AlertDialogCancel>
-										<AlertDialogAction
-											onClick={handleLogout}
-											className="bg-red-600 hover:bg-red-700"
-										>
-											Yes
-										</AlertDialogAction>
-									</AlertDialogFooter>
-								</AlertDialogContent>
-							</AlertDialog>
-						) : (
-							<Link href="/login">
-								<Button className="bg-[#4E342E] hover:bg-[#3E2A25]">
-									Login
+					<div className="flex items-center gap-4">
+						<AlertDialog>
+							<AlertDialogTrigger asChild>
+								<Button
+									variant="ghost"
+									className="text-gray-500 hover:text-red-600 hover:bg-red-50 gap-2"
+								>
+									<LogOut size={18} />
+									<span className="hidden md:inline">Logout</span>
 								</Button>
-							</Link>
-						)}
+							</AlertDialogTrigger>
+							<AlertDialogContent>
+								<AlertDialogHeader>
+									<AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+									<AlertDialogDescription>
+										Are you sure you want to end your session?
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+								<AlertDialogFooter>
+									<AlertDialogCancel>Cancel</AlertDialogCancel>
+									<AlertDialogAction
+										onClick={handleLogout}
+										className="bg-red-600 hover:bg-red-700 text-white"
+									>
+										Logout
+									</AlertDialogAction>
+								</AlertDialogFooter>
+							</AlertDialogContent>
+						</AlertDialog>
 					</div>
 				</div>
 			</nav>
 
 			<main className="p-4 md:p-8 space-y-6 container mx-auto">
-				<Card className="border-none shadow-sm bg-white overflow-hidden">
-					<CardContent className="p-0">
-						<div className="flex flex-col md:flex-row">
-							<div className="p-6 md:w-1/3 border-r border-[#F5F5F5] space-y-4">
-								<h3 className="text-lg font-bold text-[#4E342E]">
-									Number of Customer
-								</h3>
-								<div className="space-y-6 pt-4">
-									{Object.entries(studioStats).map(([name, count]) => (
-										<div
-											key={name}
-											className="flex items-center justify-between"
-										>
-											<div className="flex items-center gap-3">
-												<div className="p-2 bg-[#F5F5F5] rounded-lg">
-													<Users size={18} className="text-[#4E342E]" />
-												</div>
-												<span className="text-sm font-medium text-[#5D4037]">
-													{name}
-												</span>
-											</div>
-											<span className="text-xl font-bold text-[#4E342E]">
-												{count}
-											</span>
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					<Card className="border-none shadow-sm bg-white p-6">
+						<h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+							Confirmed Customers
+						</h3>
+						<div className="space-y-4">
+							{Object.entries(studioStats).map(([name, count]) => (
+								<div
+									key={name}
+									className="flex items-center justify-between p-3 bg-[#FAF9F8] rounded-xl"
+								>
+									<div className="flex items-center gap-3">
+										<div className="p-2 bg-white rounded-lg shadow-sm text-[#795548]">
+											<Users size={18} />
 										</div>
-									))}
+										<span className="text-sm font-medium text-[#5D4037]">
+											{name}
+										</span>
+									</div>
+									<span className="text-2xl font-bold text-[#4E342E]">
+										{count}
+									</span>
 								</div>
-							</div>
-							<div className="p-6 md:w-2/3 bg-[#FAF9F8]">
-								<HighchartsReact
-									highcharts={Highcharts}
-									options={chartOptions}
-								/>
-							</div>
+							))}
 						</div>
-					</CardContent>
-				</Card>
+					</Card>
 
-				{/* table list booking */}
+					<Card className="lg:col-span-2 border-none shadow-sm bg-white p-4">
+						<HighchartsReact highcharts={Highcharts} options={chartOptions} />
+					</Card>
+				</div>
+
 				<Card className="border-none shadow-sm bg-white overflow-hidden">
 					<Tabs defaultValue="PENDING" className="w-full">
-						<div className="px-6 pt-6 flex justify-between items-center border-b border-[#F5F5F5]">
-							<TabsList className="bg-[#F5F5F5] mb-2">
-								<TabsTrigger value="PENDING">PENDING</TabsTrigger>
-								<TabsTrigger value="CONFIRMED">APPROVED</TabsTrigger>
-								<TabsTrigger value="CANCELLED">CANCELLED</TabsTrigger>
+						<div className="px-6 pt-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#F5F5F5] pb-4">
+							<div>
+								<h2 className="text-lg font-bold text-[#4E342E]">
+									Booking Management
+								</h2>
+								<p className="text-sm text-gray-500">
+									Manage and monitor customer reservations
+								</p>
+							</div>
+							<TabsList className="bg-[#F5F5F5]">
+								<TabsTrigger
+									value="PENDING"
+									className="data-[state=active]:bg-white"
+								>
+									PENDING
+								</TabsTrigger>
+								<TabsTrigger
+									value="CONFIRMED"
+									className="data-[state=active]:bg-white"
+								>
+									APPROVED
+								</TabsTrigger>
+								<TabsTrigger
+									value="CANCELLED"
+									className="data-[state=active]:bg-white"
+								>
+									CANCELLED
+								</TabsTrigger>
 							</TabsList>
 						</div>
 
 						{["PENDING", "CONFIRMED", "CANCELLED"].map((status) => (
-							<TabsContent key={status} value={status}>
+							<TabsContent key={status} value={status} className="m-0">
 								<div className="overflow-x-auto">
 									<Table>
-										<TableHeader>
+										<TableHeader className="bg-[#FAF9F8]">
 											<TableRow>
-												<TableHead>Customer</TableHead>
+												<TableHead className="w-[250px]">Customer</TableHead>
 												<TableHead>Studio</TableHead>
 												<TableHead>Schedule</TableHead>
 												<TableHead className="text-right">Action</TableHead>
@@ -265,28 +293,63 @@ export default function AdminDashboard() {
 												<TableRow>
 													<TableCell
 														colSpan={4}
-														className="text-center py-10 text-gray-400"
+														className="text-center py-20 text-gray-400"
 													>
-														No data found
+														No bookings found for status: {status}
 													</TableCell>
 												</TableRow>
 											) : (
 												bookingsData
 													?.filter((b: any) => b.Status === status)
 													.map((booking: any) => (
-														<TableRow key={booking.ID}>
+														<TableRow
+															key={booking.ID}
+															className="hover:bg-gray-50/50"
+														>
 															<TableCell>
-																<p className="font-bold">{booking.name}</p>
-																<p className="text-xs text-gray-500">
-																	{booking.email}
-																</p>
+																<div className="flex flex-col">
+																	<span className="font-bold text-[#4E342E]">
+																		{booking.name}
+																	</span>
+																	<span className="text-xs text-gray-500 italic">
+																		{booking.email}
+																	</span>
+																	<span className="text-[10px] text-gray-400 mt-1">
+																		ID: {booking.ID}
+																	</span>
+																</div>
 															</TableCell>
-															<TableCell>{booking.studio?.Name}</TableCell>
 															<TableCell>
-																<Badge variant="outline">
-																	{formatTime(booking.slot?.StartTime)} -{" "}
-																	{formatTime(booking.slot?.EndTime)}
+																<Badge
+																	variant="secondary"
+																	className="bg-[#D7CCC8]/30 text-[#4E342E] hover:bg-[#D7CCC8]/50 border-none"
+																>
+																	{booking.studio?.Name || "N/A"}
 																</Badge>
+															</TableCell>
+															<TableCell>
+																<div className="flex flex-col gap-1">
+																	<span className="text-sm font-medium">
+																		{booking.slot?.StartTime
+																			? new Date(
+																					booking.slot.StartTime,
+																				).toLocaleDateString("id-ID", {
+																					weekday: "long",
+																					day: "numeric",
+																					month: "short",
+																				})
+																			: "-"}
+																	</span>
+																	<div className="flex items-center gap-1 text-xs text-gray-500">
+																		<Badge
+																			variant="outline"
+																			className="font-mono"
+																		>
+																			{formatTime(booking.slot?.StartTime)} -{" "}
+																			{formatTime(booking.slot?.EndTime)}
+																		</Badge>
+																	</div>
+																</div>
 															</TableCell>
 															<TableCell className="text-right">
 																<ActionButtons
@@ -294,6 +357,10 @@ export default function AdminDashboard() {
 																	id={booking.ID}
 																	onApprove={approveMutation.mutate}
 																	onReject={rejectMutation.mutate}
+																	isLoading={
+																		approveMutation.isPending ||
+																		rejectMutation.isPending
+																	}
 																/>
 															</TableCell>
 														</TableRow>
@@ -311,7 +378,7 @@ export default function AdminDashboard() {
 	);
 }
 
-function ActionButtons({ status, id, onApprove, onReject }: any) {
+function ActionButtons({ status, id, onApprove, onReject, isLoading }: any) {
 	if (status === "PENDING") {
 		return (
 			<div className="flex justify-end gap-2">
@@ -320,26 +387,28 @@ function ActionButtons({ status, id, onApprove, onReject }: any) {
 						<Button
 							size="sm"
 							variant="outline"
-							className="text-red-600 border-red-200"
+							disabled={isLoading}
+							className="text-red-600 border-red-200 hover:bg-red-50"
 						>
 							Reject
 						</Button>
 					}
-					title="Are you sure want to reject this booking?"
-					description="This will reject the booking and make the slot available again."
+					title="Reject Booking?"
+					description="This action will notify the customer and reopen the time slot."
 					onConfirm={() => onReject(id)}
 				/>
 				<ConfirmDialog
 					trigger={
 						<Button
 							size="sm"
+							disabled={isLoading}
 							className="bg-green-600 hover:bg-green-700 text-white"
 						>
 							Approve
 						</Button>
 					}
-					title="Are you sure want to approve this booking?"
-					description="This will confirm the reservation and notify the customer."
+					title="Approve Booking?"
+					description="Confirm this reservation. An email notification may be sent."
 					onConfirm={() => onApprove(id)}
 				/>
 			</div>
@@ -352,21 +421,22 @@ function ActionButtons({ status, id, onApprove, onReject }: any) {
 				trigger={
 					<Button
 						size="sm"
-						variant="outline"
-						className="text-red-500 border-red-200"
+						variant="ghost"
+						disabled={isLoading}
+						className="text-gray-400 hover:text-red-500"
 					>
 						Cancel Booking
 					</Button>
 				}
 				title="Cancel Approved Booking?"
-				description="The slot will be reopened for other customers."
+				description="This will vacate the studio slot for this time."
 				onConfirm={() => onReject(id)}
 			/>
 		);
 	}
 
 	return (
-		<Badge variant="secondary" className="bg-[#F5F5F5]">
+		<Badge className="bg-gray-100 text-gray-400 border-none shadow-none">
 			Archived
 		</Badge>
 	);
@@ -384,9 +454,7 @@ function ConfirmDialog({ trigger, title, description, onConfirm }: any) {
 					<AlertDialogDescription>{description}</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel className="border-[#D7CCC8]">
-						Back
-					</AlertDialogCancel>
+					<AlertDialogCancel>Back</AlertDialogCancel>
 					<AlertDialogAction
 						onClick={onConfirm}
 						className="bg-[#4E342E] text-white hover:bg-[#3E2723]"
