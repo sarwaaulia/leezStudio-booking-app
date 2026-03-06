@@ -44,7 +44,7 @@ func main() {
     r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"http://localhost:3000"},
+        AllowOrigins:     []string{"http://localhost:3000", "https://leezstudio.vercel.app"},
         AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE"},
         AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
         AllowCredentials: true,
