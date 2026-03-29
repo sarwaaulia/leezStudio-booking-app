@@ -13,7 +13,7 @@ func SeedAll(db *gorm.DB) {
 	fmt.Println("Starting seed...")
 
 	// deleting old data and reset to 1
-	db.Exec("TRUNCATE TABLE bookings RESTART IDENTITY CASCADE")
+	db.Exec("TRUNCATE TABLE bookings, time_slots, studios, users RESTART IDENTITY CASCADE") // memebrsihkan data lama agar tidak ada konflik ID
     db.Exec("TRUNCATE TABLE time_slots RESTART IDENTITY CASCADE")
     db.Exec("TRUNCATE TABLE studios RESTART IDENTITY CASCADE")
     db.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE")
@@ -60,17 +60,20 @@ func SeedAll(db *gorm.DB) {
     fmt.Printf("✅ Created %d studios (ID 1, 2, 3)\n", len(createdStudios))
 
 	// seeder for 2 time slots
-	var allSlots []models.TimeSlot
+	// otomatisasi slot waktu
     now := time.Now()
+	var allSlots []models.TimeSlot
 
 	for _, studio := range createdStudios {
+		// loop untuk 7 hari kedepan 
         for day := 0; day <= 6; day++ {
 			// start of the day
-            startTime := time.Date(now.Year(), now.Month(), now.Day()+day, 9, 0, 0, 0, now.Location())
+			// memastikan data selalu memiliki jadwal untuk satu minggu ke depan 
+            startTime := time.Date(now.Year(), now.Month(), now.Day()+day, 9, 0, 0, 0, now.Location()) 
             
 			// looping until end of the day 17.00
             for startTime.Hour() < 17 {
-                endTime := startTime.Add(30 * time.Minute)
+                endTime := startTime.Add(1 * time.Minute)
 
                 allSlots = append(allSlots, models.TimeSlot{
                     StudioID:  studio.ID,
@@ -79,11 +82,13 @@ func SeedAll(db *gorm.DB) {
                     IsBooked:  false,
                 })
 
+				// maju ke slot waktu berikutnya
                 startTime = endTime
             }
         }
     }
 
+	// insert semua slot waktu sekaligus
     if err := db.Create(&allSlots).Error; err != nil {
         fmt.Println("Error seeding slots:", err)
     }

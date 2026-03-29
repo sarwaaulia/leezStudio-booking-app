@@ -1,16 +1,19 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"time"
-	"golang.org/x/crypto/bcrypt"
+
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
+// aplikasi akan langsung terhenti jika konfigurasi penting hilang
 func getJWTSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return []byte("default_secret_key_if_env_nothing")
+		log.Fatal("Environment variables is not set!")
 	}
 	return []byte(secret)
 }

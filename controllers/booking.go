@@ -5,12 +5,15 @@ import (
 	"additional-project/models"
 	"additional-project/utils"
 	"net/http"
+	"time"
 
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // create booking for customer
@@ -35,12 +38,19 @@ func CreateBooking(c *gin.Context) {
         var slot models.TimeSlot
 
 		// if slot not found
-        if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&slot, input.SlotID).Error; err != nil {
-            return fmt.Errorf("Slot not found")
+
+        // masih menggunakan string manual untuk pesan error di dalam transaksi
+        if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&slot, input.SlotID).Error; err != nil {
+            return models.ErrSlotNotFound // menggunakan constant
         }
 
+        // menggunakan constant dari model
         if slot.IsBooked {
-            return fmt.Errorf("The slot is already booked")
+            return models.ErrSlotAlreadyBooked
+        }
+
+        if slot.StartTime.Before(time.Now()) {
+            return errors.New("Tidak dapat memesan slot yang sudah lewat")
         }
 
         // update status slot to true if user succeed booked studio
@@ -63,7 +73,16 @@ func CreateBooking(c *gin.Context) {
     })
 
     if err != nil {
-        c.JSON(http.StatusConflict, gin.H{"message": err.Error()})
+        // handling error berdasarkan constant
+        status := http.StatusInternalServerError
+        if err == models.ErrSlotNotFound || err == models.ErrSlotAlreadyBooked {
+            status = http.StatusConflict
+        }
+
+        c.JSON(status, gin.H{
+            "status":  "error",
+            "message": err.Error(),
+        })
         return
     }
 
@@ -133,13 +152,13 @@ func CreateBooking(c *gin.Context) {
 
 // for get slot time 
 func GetAvailableSlots(c *gin.Context) {
-    studioID := c.Query("studio_id")
-    dateStr := c.Query("date") //yy-mm-dd
 
     var slots []models.TimeSlot
+    now := time.Now()
 
     // filter by studio id
-    err := connections.DB.Where("studio_id = ? AND DATE(start_time) = ?", studioID, dateStr).
+    // memastikan user tidak bisa memilih jam yang sudah terlewat
+    err := connections.DB.Where("start_time > ? AND is_booked = ?", now, false).
         Order("start_time ASC").
         Find(&slots).Error
 

@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"fmt"
+	"strings"
 	"additional-project/connections"
 	"additional-project/models"
 	"additional-project/utils"
@@ -32,10 +33,20 @@ func Register(c *gin.Context) {
 	}
 
 	if err := connections.DB.Create(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Email already registered"})
-		return
-	}
-
+		// mengecek jika pesan mengandung "duplicate" (pesan error di database jika ada email yang sama)
+    if strings.Contains(err.Error(), "duplicate key") {
+        c.JSON(http.StatusConflict, gin.H{
+            "status":  "error",
+            "message": "Email already registered",
+        })
+    } else {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "status":  "error",
+            "message": "Internal server error.",
+        })
+    }
+    return
+}
 	c.JSON(http.StatusCreated, gin.H{"message": "Registration success"})
 }
 

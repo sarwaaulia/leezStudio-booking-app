@@ -148,7 +148,7 @@ function BookingContent() {
 				</h1>
 				<button
 					onClick={() => setIsSidebarOpen(true)}
-					className="p-2 rounded-full bg-white/20 hover:bg-white/40 text-white"
+					className="p-2 rounded-full bg-white/20 hover:bg-white/40 text-white cursor-pointer"
 				>
 					<History size={24} />
 				</button>
@@ -163,8 +163,8 @@ function BookingContent() {
 						<h2 className="text-xl font-bold" style={{ color: colors.primary }}>
 							Track My Booking
 						</h2>
-						<button onClick={() => setIsSidebarOpen(false)}>
-							<X />
+						<button onClick={() => setIsSidebarOpen(false)} className="p-2 rounded-full transition-colors duration-200 hover:bg-red-100 text-gray-500 hover:text-red-600 active:bg-red-200">
+							<X size={24}/>
 						</button>
 					</div>
 					<div className="space-y-4 mb-8">
@@ -186,7 +186,7 @@ function BookingContent() {
 						/>
 						<button
 							onClick={() => handleTrack()}
-							className="w-full py-3 rounded-xl text-white font-bold"
+							className="w-full py-3 rounded-xl text-white font-bold cursor-pointer"
 							style={{ backgroundColor: colors.primary }}
 						>
 							Search
@@ -253,7 +253,7 @@ function BookingContent() {
 								.getElementById("studios")
 								?.scrollIntoView({ behavior: "smooth" })
 						}
-						className="px-10 py-4 rounded-full font-bold bg-[#A1887F]"
+						className="px-10 py-4 rounded-full font-bold bg-[#A1887F] transition-transform duration-300 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl"
 					>
 						BOOKING
 					</button>

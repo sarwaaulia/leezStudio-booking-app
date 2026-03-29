@@ -1,18 +1,24 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080',
+  // menggunakan variabel environment yang simpel agar fleksibel
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // handle global error handling
+    const message = error.response?.data?.message || "Internal server error";
+    
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
     }
+    
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 export default api;

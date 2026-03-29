@@ -2,6 +2,7 @@ package models
 
 import (
 	"time"
+	"errors"
 )
 
 type Role string 
@@ -61,3 +62,10 @@ type Booking struct {
 	Slot          TimeSlot      `gorm:"foreignKey:SlotID" json:"slot"`
 	CreatedAt     time.Time     `json:"created_at"`
 }
+
+var (
+    ErrSlotNotFound      = errors.New("Slot not found")
+    ErrSlotAlreadyBooked = errors.New("Slot already booked by others.")
+    ErrBookingNotFound   = errors.New("Booking reserved not found.")
+    ErrInternalServer    = errors.New("Internal server error")
+)

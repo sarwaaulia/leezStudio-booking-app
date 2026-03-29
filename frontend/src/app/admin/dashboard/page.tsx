@@ -9,11 +9,10 @@ import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { Loader2, Users, LogOut, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Table,
@@ -68,7 +67,6 @@ export default function AdminDashboard() {
 	const {
 		data: bookingsData,
 		isLoading,
-		isError,
 	} = useQuery({
 		queryKey: ["bookings"],
 		queryFn: async () => {
@@ -153,11 +151,10 @@ export default function AdminDashboard() {
 
 	if (!isMounted || isLoading) {
 		return (
-			<div className="flex h-screen w-full flex-col items-center justify-center bg-[#F5F5F5] gap-4">
-				<Loader2 className="h-12 w-12 animate-spin text-[#4E342E]" />
-				<p className="text-[#4E342E] font-medium animate-pulse">
-					Syncing dashboard data...
-				</p>
+			<div className="flex h-screen items-center justify-center">
+				<Loader2 className="h-8 w-8 animate-spin text-[#4E342E]" />
+				{/* mengurangi cognititve load dan memberikan progres yang jelas selama proses data di ambil di server */}
+				<span className="ml-2">Reloading data reservation...</span>
 			</div>
 		);
 	}
