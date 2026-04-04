@@ -154,6 +154,7 @@ func CreateBooking(c *gin.Context) {
 func GetAvailableSlots(c *gin.Context) {
 
     var slots []models.TimeSlot
+    // sebagai patokan
     now := time.Now()
 
     // filter by studio id

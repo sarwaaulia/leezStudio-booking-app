@@ -73,7 +73,9 @@ func SeedAll(db *gorm.DB) {
             
 			// looping until end of the day 17.00
             for startTime.Hour() < 17 {
-                endTime := startTime.Add(1 * time.Minute)
+				
+				// mengganti dengan 60 menit(1 jam)
+                endTime := startTime.Add(60 * time.Minute)
 
                 allSlots = append(allSlots, models.TimeSlot{
                     StudioID:  studio.ID,

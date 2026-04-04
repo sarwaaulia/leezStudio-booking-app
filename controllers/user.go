@@ -7,6 +7,7 @@ import (
 	"additional-project/connections"
 	"additional-project/models"
 	"additional-project/utils"
+	"testing"
 	"github.com/gin-gonic/gin"
 )
 
@@ -84,4 +85,14 @@ func Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func TestRegister_DuplicateValidation(t *testing.T) {
+    // Skenario: User mencoba daftar dengan email yang sudah ada
+    t.Run("Handle Duplicate Email", func(t *testing.T) {
+        err := repository.CreateUser(mockDB, existingEmailUser)
+        
+        // Assertion: Pastikan error bukan sekadar "error", tapi ErrEmailAlreadyExists
+        assert.ErrorIs(t, err, models.ErrEmailAlreadyExists)
+    })
 }
